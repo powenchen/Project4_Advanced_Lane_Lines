@@ -13,42 +13,57 @@ The goals / steps of this project are the following:
 
 [//]: # (Image References)
 
-[image1]: ./examples/undistort_output.png "Undistorted"
-[image2]: ./test_images/test1.jpg "Road Transformed"
-[image3]: ./examples/binary_combo_example.jpg "Binary Example"
-[image4]: ./examples/warped_straight_lines.jpg "Warp Example"
-[image5]: ./examples/color_fit_lines.jpg "Fit Visual"
-[image6]: ./examples/example_output.jpg "Output"
+[image1]: ./examples/calibration_original.jpg 
+[image2]: ./examples/calibration_undist.jpg
+[image3]: ./examples/pipeline_original.jpg 
+[image4]: ./examples/pipeline_undist.jpg 
+[image5]: ./examples/pipeline_binary_threshold.jpg 
+[image6]: ./examples/pipeline_perspective.jpg 
+[image7]: ./examples/pipeline_result.jpg 
+[image8]: ./examples/WarpSRC.jpg 
+
 [video1]: ./project_video.mp4 "Video"
-[video2]: ./project_video_output.mp4 "Video"
+[video2]: ./project_video_output.mp4 "Result Video"
 
 
 ---
 
 ### Camera Calibration
 
-#### 1. Briefly state how you computed the camera matrix and distortion coefficients. Provide an example of a distortion corrected calibration image.
+#### 1. How I computed the camera matrix and distortion coefficients.
 
-The code for this step is contained in the first code cell of the IPython notebook located in "./examples/example.ipynb" (or in lines # through # of the file called `some_file.py`).  
+I start by counting the corner numbers in the calibration images, there are 9X6 corners in each image. After that, I created "object points", which are (x, y, z) coordinates with the same shape of the corners(9X6).
 
-I start by preparing "object points", which will be the (x, y, z) coordinates of the chessboard corners in the world. Here I am assuming the chessboard is fixed on the (x, y) plane at z=0, such that the object points are the same for each calibration image.  Thus, `objp` is just a replicated array of coordinates, and `objpoints` will be appended with a copy of it every time I successfully detect all chessboard corners in a test image.  `imgpoints` will be appended with the (x, y) pixel position of each of the corners in the image plane with each successful chessboard detection.  
+I read in all the images in ./camera_cal, and get the pixel coordinates of corners using cv2.findChessboardCorners(). With these image corner points and object points, I am able to get the image calibration matrix by using cv2.calibrateCamera() and can use this on calibration the camera distortion later by using cv2.undistort(). 
+(In line 7-40 of LaneFinding.py)
 
-I then used the output `objpoints` and `imgpoints` to compute the camera calibration and distortion coefficients using the `cv2.calibrateCamera()` function.  I applied this distortion correction to the test image using the `cv2.undistort()` function and obtained this result: 
+There are some example images for camera calibration, the left one is the first image and the second one is the image after calibration.
+![alt text][image1]![alt text][image2]
 
-![alt text][image1]
+### Pipeline
 
-### Pipeline (single images)
-
-#### 1. Provide an example of a distortion-corrected image.
+#### 1. An example of a distortion-corrected image.
 
 To demonstrate this step, I will describe how I apply the distortion correction to one of the test images like this one:
-![alt text][image2]
-
-#### 2. Describe how (and identify where in your code) you used color transforms, gradients or other methods to create a thresholded binary image.  Provide an example of a binary image result.
-
-I used a combination of color and gradient thresholds to generate a binary image (thresholding steps at lines # through # in `another_file.py`).  Here's an example of my output for this step.  (note: this is not actually from one of the test images)
-
 ![alt text][image3]
+
+After applying
+```python
+undist = cv2.undistort(img,mtx,dist,None,mtx)
+```
+The undistorted output will be like the following image:
+![alt text][image4]
+
+#### 2. Color transforms and gradients thresholded binary image. 
+
+First, I transformed the image to HLS color space, and use the L channel and S channel for my thresholding condition.
+
+Secondly, I transformed my image to gray scale and apply cv2.Sobel() to calculate the gradient of the image. I used the 2-norm of x-direction sobel and y-direction sobel for my threshold.
+
+Then I combine these conditions, with  the condition: (L_channel binary) and [(S_channel binary) or (2-norm of gradient binary)]
+
+Here's an example of my output for this step. 
+![alt text][image5]
 
 #### 3. Describe how (and identify where in your code) you performed a perspective transform and provide an example of a transformed image.
 

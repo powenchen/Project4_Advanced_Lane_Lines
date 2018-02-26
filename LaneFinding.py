@@ -17,6 +17,7 @@ def cameraCalibration(calib_img_folder):
 	objp = np.zeros((nx*ny,3),np.float32)
 	objp[:,:2] = np.mgrid[0:nx,0:ny].T.reshape(-1,2)
 
+
 	for fname in calib_img_names:
 		img = cv2.imread(fname)
 		# Convert to grayscale
@@ -30,6 +31,12 @@ def cameraCalibration(calib_img_folder):
 
 	ret,mtx,dist,rvecs,tvecs = cv2.calibrateCamera(objpoints,imgpoints,gray.shape[::-1],None,None)
 	
+	# for example images
+	img = cv2.imread("test_images/test1.jpg")
+	undist = cv2.undistort(img,mtx,dist,None,mtx)
+	cv2.imwrite("examples/calibration_undist.jpg",undist)
+	cv2.imwrite("examples/calibration_original.jpg",img)
+
 	return mtx,dist
 
 def getMyWarpMatrix(demo_img = None):
@@ -56,14 +63,14 @@ def getMyWarpMatrix(demo_img = None):
 			pt1 = (src[i-1][0],src[i-1][1])
 			pt2 = (src[i][0],src[i][1])
 			cv2.line(img,pt1,pt2,(0,0,255),10)
-		cv2.imwrite("output_images/WarpSRC.jpg",img)
+		cv2.imwrite("examples/WarpSRC.jpg",img)
 
 	M = cv2.getPerspectiveTransform(src,dst)
 	Minv = cv2.getPerspectiveTransform(dst, src)
 
 	return M,Minv
 	
-def find_binarymask(img):
+def binary_threshold(img):
 	sobel_kernel=15
 	hls = cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
 	l_channel = hls[:,:,1]
@@ -173,11 +180,11 @@ def find_lanes(binary_warped):
 
 	return left_fitx, right_fitx,ploty
 
-def pipeline(img):
-	undist = cv2.undistort(img,mtx,dist,None,mtx)
-	binary = find_binarymask(undist)
-	warped = cv2.warpPerspective(binary,M,img.shape[0:2][::-1])
+def pipeline(img,demo=False):
 
+	undist = cv2.undistort(img,mtx,dist,None,mtx)
+	binary = binary_threshold(undist)
+	warped = cv2.warpPerspective(binary,M,img.shape[0:2][::-1])
 
 	lanes = np.zeros(img.shape,dtype='uint8')
 	left_fitx, right_fitx,ploty = find_lanes(warped)
@@ -201,9 +208,19 @@ def pipeline(img):
 
 	lanes = cv2.warpPerspective(lanes,Minv,lanes.shape[0:2][::-1])
 
-	img = cv2.addWeighted(img, 1, lanes, 0.5, 0)
 
-	return img
+
+	result = cv2.addWeighted(img, 1, lanes, 0.5, 0)
+
+
+	if demo:
+		cv2.imwrite("examples/pipeline_original.jpg",img)
+		cv2.imwrite("examples/pipeline_undist.jpg",undist)
+		cv2.imwrite("examples/pipeline_binary_threshold.jpg",binary)
+		cv2.imwrite("examples/pipeline_perspective.jpg",warped)
+		cv2.imwrite("examples/pipeline_result.jpg",result)
+
+	return result
 
 test_images = []
 
@@ -213,6 +230,8 @@ for img_name in listdir("test_images"):
 
 M, Minv = getMyWarpMatrix(test_images[0][1])
 mtx,dist = cameraCalibration("camera_cal")
+
+pipeline(test_images[0][1],demo = True)
 
 for img in test_images:
 	output = pipeline(img[1])
