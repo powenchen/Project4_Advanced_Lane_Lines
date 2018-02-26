@@ -144,7 +144,7 @@ I implemented this step in lines # through # in my code. Here is an example of m
 
 #### 1. Link to your final video output.
 
-Here's a [link to my video result](./project_video.mp4)
+Here's a [link to my video result](./project_video_output.mp4)
 
 ---
 
