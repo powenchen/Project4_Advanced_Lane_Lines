@@ -21,9 +21,7 @@ The goals / steps of this project are the following:
 [image6]: ./examples/pipeline_perspective.jpg 
 [image7]: ./examples/pipeline_result.jpg 
 [image8]: ./examples/WarpSRC.jpg 
-
-[video1]: ./project_video.mp4 "Video"
-[video2]: ./project_video_output.mp4 "Result Video"
+[image9]: ./examples/findLanes.jpg
 
 
 ---
@@ -35,7 +33,7 @@ The goals / steps of this project are the following:
 I start by counting the corner numbers in the calibration images, there are 9X6 corners in each image. After that, I created "object points", which are (x, y, z) coordinates with the same shape of the corners(9X6).
 
 I read in all the images in ./camera_cal, and get the pixel coordinates of corners using cv2.findChessboardCorners(). With these image corner points and object points, I am able to get the image calibration matrix by using cv2.calibrateCamera() and can use this on calibration the camera distortion later by using cv2.undistort(). 
-(In line 7-40 of LaneFinding.py)
+(In line 7-40 of AdvancedLaneLines.py)
 
 There are some example images for camera calibration, the left one is the first image and the second one is the image after calibration.
 ![alt text][image1]![alt text][image2]
@@ -61,61 +59,90 @@ First, I transformed the image to HLS color space, and use the L channel and S c
 Secondly, I transformed my image to gray scale and apply cv2.Sobel() to calculate the gradient of the image. I used the 2-norm of x-direction sobel and y-direction sobel for my threshold.
 
 Then I combine these conditions, with  the condition: (L_channel binary) and [(S_channel binary) or (2-norm of gradient binary)]
+(Located in line 73-99 of AdvancedLaneLines.py)
 
 Here's an example of my output for this step. 
 ![alt text][image5]
 
-#### 3. Describe how (and identify where in your code) you performed a perspective transform and provide an example of a transformed image.
+#### 3. Perspective transform.
 
-The code for my perspective transform includes a function called `warper()`, which appears in lines 1 through 8 in the file `example.py` (output_images/examples/example.py) (or, for example, in the 3rd code cell of the IPython notebook).  The `warper()` function takes as inputs an image (`img`), as well as source (`src`) and destination (`dst`) points.  I chose the hardcode the source and destination points in the following manner:
+First, I start with choosing my area of interest in the camera image.
+![alt text][image8]
 
+This four corners of this area is :
 ```python
 src = np.float32(
-    [[(img_size[0] / 2) - 55, img_size[1] / 2 + 100],
-    [((img_size[0] / 6) - 10), img_size[1]],
-    [(img_size[0] * 5 / 6) + 60, img_size[1]],
-    [(img_size[0] / 2 + 55), img_size[1] / 2 + 100]])
+	[
+	[80,684],
+	[1200,684],
+	[744,463],
+	[548,463]])
+ ```
+
+And I defined a destination area for the warping projection:
+```python
 dst = np.float32(
-    [[(img_size[0] / 4), 0],
-    [(img_size[0] / 4), img_size[1]],
-    [(img_size[0] * 3 / 4), img_size[1]],
-    [(img_size[0] * 3 / 4), 0]])
+	[
+	[140,670],
+	[1180,670],
+	[1180,50],
+	[140,50]])
+ ```
+
+With the source and destination of warping defined we can warp the image to "Bird-eye's view" with the opencv getPerspectiveTransform function:
+```python
+M = cv2.getPerspectiveTransform(src,dst)
+warped = cv2.warpPerspective(binary,M,imshape) # binary is the output of the last session
 ```
 
-This resulted in the following source and destination points:
-
-| Source        | Destination   | 
-|:-------------:|:-------------:| 
-| 585, 460      | 320, 0        | 
-| 203, 720      | 320, 720      |
-| 1127, 720     | 960, 720      |
-| 695, 460      | 960, 0        |
+(Located in line 42-71 of AdvancedLaneLines.py)
 
 I verified that my perspective transform was working as expected by drawing the `src` and `dst` points onto a test image and its warped counterpart to verify that the lines appear parallel in the warped image.
 
-![alt text][image4]
-
-#### 4. Describe how (and identify where in your code) you identified lane-line pixels and fit their positions with a polynomial?
-
-Then I did some other stuff and fit my lane lines with a 2nd order polynomial kinda like this:
-
-![alt text][image5]
-
-#### 5. Describe how (and identify where in your code) you calculated the radius of curvature of the lane and the position of the vehicle with respect to center.
-
-I did this in lines # through # in my code in `my_other_file.py`
-
-#### 6. Provide an example image of your result plotted back down onto the road such that the lane area is identified clearly.
-
-I implemented this step in lines # through # in my code in `yet_another_file.py` in the function `map_lane()`.  Here is an example of my result on a test image:
-
 ![alt text][image6]
+
+#### 4. Identifying lane-line pixels and fit their positions with a polynomial
+
+With the techniques mentioned in class(Lesson15, Section 33: Finding the Lines), we are able to find the lane lines.
+
+First we divide the image into strides in y-direction, for each stride we perform a sliding window adding up the nonzero pixels within the window.
+
+Secondly, we can make histogram to identify two strongest peaks and assume they to be correspond to the two lane lines. 
+
+After get all the left and right lane points on each strides, we can perform second degree(quadratic) polynomial fit to find the left and right lane lines.
+
+(Located in line 100-223 of AdvancedLaneLines.py)
+
+Here is the example of my polynomial fit for the image:
+
+![alt text][image9]
+
+#### 5. How to calculate the radius of curvature of the lane and the position of the vehicle with respect to center.
+
+Since we already use a second degree polynomial fit for our lanes, it can be expressed as:
+
+"f(y)=Ay^2+By+C"
+
+And there is a closed form for curvature of a quadratic line:
+
+Radius of curve = (1+(2Ay+B)^2) ^1.5 / |2A|; curvature is the reciprocal of radius.
+
+Given this we can calculate the curvature of the lanes at y meters ahead.
+(Source: https://www.intmath.com/applications-differentiation/8-radius-curvature.php)
+
+(Located in line 210-221 of AdvancedLaneLines.py)
+
+#### 6. Example image of my result.
+
+I implemented this step in lines # through # in my code. Here is an example of my result on a test image:
+
+![alt text][image7]
 
 ---
 
 ### Pipeline (video)
 
-#### 1. Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video (wobbly lines are ok but no catastrophic failures that would cause the car to drive off the road!).
+#### 1. Link to your final video output.
 
 Here's a [link to my video result](./project_video.mp4)
 
@@ -125,4 +152,6 @@ Here's a [link to my video result](./project_video.mp4)
 
 #### 1. Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
 
-Here I'll talk about the approach I took, what techniques I used, what worked and why, where the pipeline might fail and how I might improve it if I were going to pursue this project further.  
+In my pipeline, if there's less than 3 pixels detected after binary thresholding, it may have problem to fit a second degree polynomial line and it might fail. We can detect this and prevent doing polynomial fit with too feww data points.
+
+Besides, in very bad(too strong or too weak) or uneven lighting condition, such as conditions in challenge videos, the binary threshoolding has problem to fetch the lane pixels. We could improve this by tracking the lanes by considering previous processed frames. In this project, we never consider the correlations between consecutive frames, and this should help since we can fairly assume the correlation of lane position between consecutive frames should be vaery high in real world.
