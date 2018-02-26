@@ -206,19 +206,27 @@ def find_lanes(binary_warped,demo = False):
 		plt.xlim(0, 1280)
 		plt.ylim(720, 0)
 		plt.imsave("examples/findLanes.png",result)
-
 	# Measure Radius of Curvature for each lane line
-	y_pixel_size = 20./620 # (approximately estimation) meters per pixel in y dimension
-	x_pixel_size = 3.7/800 # (approximately estimation) meteres per pixel in x dimension
-	left_R = ((1 + (2*left_fit[0]*np.max(lefty) + left_fit[1])**2)**1.5) \
-								 /np.absolute(2*left_fit[0])
-	right_R = ((1 + (2*right_fit[0]*np.max(lefty) + right_fit[1])**2)**1.5) \
-									/np.absolute(2*right_fit[0])
-	
-	R = (left_R + right_R)/2
-	right_crossing, left_crossing = np.max(rightx),np.max(leftx)
+	ym_per_pix = 30.0/720.0 # meters per pixel in y dimension
+	xm_per_pix = 3.7/700.0 # meters per pixel in x dimension
+
+	# Fit new polynomials to x,y in world space
+
+	left_fit_cr = np.polyfit(lefty*ym_per_pix, leftx*xm_per_pix, 2)
+	right_fit_cr = np.polyfit(righty*ym_per_pix, rightx*xm_per_pix, 2)
+
+	y_eval = np.max(ploty)
+
+	# Calculate the new radii of curvature
+	left_curverad = ((1 + (2*left_fit_cr[0]*y_eval*ym_per_pix + left_fit_cr[1])**2)**1.5) / np.absolute(2*left_fit_cr[0])
+	right_curverad = ((1 + (2*right_fit_cr[0]*y_eval*ym_per_pix + right_fit_cr[1])**2)**1.5) / np.absolute(2*right_fit_cr[0])
+
+
+	R = (left_curverad + right_curverad)/2
+	right_crossing, left_crossing = right_fitx[-1], left_fitx[-1]
 	#center should be 1280/2
-	offset = (1280/2 - ((right_crossing+left_crossing)/2)) * x_pixel_size
+	center = binary_warped.shape[1]/2
+	offset = (center - ((right_crossing+left_crossing)/2.0)) * xm_per_pix
 
 	return left_fitx, right_fitx,ploty, R, offset
 
@@ -250,10 +258,10 @@ def pipeline(img,demo=False):
 
 	lanes = cv2.warpPerspective(lanes,Minv,lanes.shape[0:2][::-1])
 
-	result = cv2.addWeighted(img, 1, lanes, 0.5, 0)
+	result = cv2.addWeighted(undist, 1, lanes, 0.5, 0)
 
 	position = "right"
-	if offset > 0:
+	if offset < 0:
 		position = "left"
 	cv2.putText(result, 'Offset from Center: {:.2f}m {} from center'.format(np.abs(offset),position), (80,80),
 		fontFace = 16, fontScale = 1, color=(0,0,255), thickness = 2)

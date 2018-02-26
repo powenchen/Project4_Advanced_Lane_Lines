@@ -111,7 +111,7 @@ Secondly, we can make histogram to identify two strongest peaks and assume they 
 
 After get all the left and right lane points on each strides, we can perform second degree(quadratic) polynomial fit to find the left and right lane lines.
 
-(Located in line 100-223 of AdvancedLaneLines.py)
+(Located in line 100-231 of AdvancedLaneLines.py)
 
 Here is the example of my polynomial fit for the image:
 
@@ -130,7 +130,7 @@ Radius of curve = (1+(2Ay+B)^2) ^1.5 / |2A|; curvature is the reciprocal of radi
 Given this we can calculate the curvature of the lanes at y meters ahead.
 (Source: https://www.intmath.com/applications-differentiation/8-radius-curvature.php)
 
-(Located in line 210-221 of AdvancedLaneLines.py)
+(Located in line 210-229 of AdvancedLaneLines.py)
 
 #### 6. Example image of my result.
 
